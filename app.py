@@ -252,7 +252,6 @@ def imagem_para_data_url(img_pil):
 
 
 def calcular_caixa_texto(texto_orador):
-    """Calcula a área arrastável do bloco de texto na escala real do post."""
     pasta_assets = "assets"
     fonte = carregar_fonte(pasta_assets, tamanho=TAMANHO_FONTE_PX)
     linhas = quebrar_texto_estrito(texto_orador, max_caracteres=18)
