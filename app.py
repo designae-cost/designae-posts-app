@@ -13,6 +13,41 @@ from streamlit_drawable_canvas import st_canvas
 # ──────────────────────────────────────────────────────────────────────
 st.set_page_config(page_title="DESIGNAE Posts Generator", layout="centered")
 st.title("DESIGNAE Posts Generator")
+st.markdown(
+    """
+    <style>
+    div.st-key-text_light_button button,
+    div.st-key-text_dark_button button {
+        width: auto !important;
+        min-width: 6rem !important;
+        white-space: nowrap !important;
+    }
+
+    div.st-key-text_light_button button {
+        background-color: #FFFFFF !important;
+        border-color: #D0D2D6 !important;
+        color: #383838 !important;
+    }
+
+    div.st-key-text_light_button button p {
+        color: #383838 !important;
+        white-space: nowrap !important;
+    }
+
+    div.st-key-text_dark_button button {
+        background-color: #383838 !important;
+        border-color: #383838 !important;
+        color: #FFFFFF !important;
+    }
+
+    div.st-key-text_dark_button button p {
+        color: #FFFFFF !important;
+        white-space: nowrap !important;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 TAMANHO_FONTE_PX = 35
 ENTRELINHA_PX    = 40
@@ -187,7 +222,15 @@ def aplicar_template_overlay(foto_rgb, largura, altura, pasta_assets, template_n
     return aplicar_multiply_rgba(foto_rgb, template)
 
 
-def gerar_post_designae(imagem_cortada, texto_orador, texto_x, texto_y, template_nome, desenhar_texto=True):
+def gerar_post_designae(
+    imagem_cortada,
+    texto_orador,
+    texto_x,
+    texto_y,
+    template_nome,
+    cor_texto_hex="#FFFFFF",
+    desenhar_texto=True,
+):
     LARGURA, ALTURA = EXPORT_W, EXPORT_H
     pasta_assets = "assets"
 
@@ -229,13 +272,14 @@ def gerar_post_designae(imagem_cortada, texto_orador, texto_x, texto_y, template
 
         draw = ImageDraw.Draw(camada_fixos)
         y_linha_atual = origem_y + (40 * render_scale)
+        cor_texto = tuple(int(cor_texto_hex.lstrip("#")[idx:idx + 2], 16) for idx in (0, 2, 4)) + (255,)
 
         for linha in linhas:
             if linha.strip():
                 draw.text(
                     (origem_x + recuo_texto_x, y_linha_atual),
                     linha,
-                    fill=(255, 255, 255, 255),
+                    fill=cor_texto,
                     font=fonte,
                 )
             y_linha_atual += ENTRELINHA_PX * render_scale
@@ -252,6 +296,7 @@ def imagem_para_data_url(img_pil):
 
 
 def calcular_caixa_texto(texto_orador):
+    """Calcula a área arrastável do bloco de texto na escala real do post."""
     pasta_assets = "assets"
     fonte = carregar_fonte(pasta_assets, tamanho=TAMANHO_FONTE_PX)
     linhas = quebrar_texto_estrito(texto_orador, max_caracteres=18)
@@ -281,7 +326,7 @@ def calcular_caixa_texto(texto_orador):
     return max(largura, 180), max(altura, 90)
 
 
-def gerar_bloco_texto_preview(texto_orador, largura, altura):
+def gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex="#FFFFFF"):
     bloco = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
 
     if texto_orador.strip():
@@ -297,13 +342,14 @@ def gerar_bloco_texto_preview(texto_orador, largura, altura):
         linhas = quebrar_texto_estrito(texto_orador, max_caracteres=18)
         draw = ImageDraw.Draw(bloco)
         y_linha_atual = 40
+        cor_texto = tuple(int(cor_texto_hex.lstrip("#")[idx:idx + 2], 16) for idx in (0, 2, 4)) + (255,)
 
         for linha in linhas:
             if linha.strip():
                 draw.text(
                     (recuo_texto_x, y_linha_atual),
                     linha,
-                    fill=(255, 255, 255, 255),
+                    fill=cor_texto,
                     font=fonte,
                 )
             y_linha_atual += ENTRELINHA_PX
@@ -311,8 +357,8 @@ def gerar_bloco_texto_preview(texto_orador, largura, altura):
     return bloco
 
 
-def preparar_bloco_arrastavel(texto_orador, largura, altura, escala):
-    bloco = gerar_bloco_texto_preview(texto_orador, largura, altura)
+def preparar_bloco_arrastavel(texto_orador, largura, altura, escala, cor_texto_hex="#FFFFFF"):
+    bloco = gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex)
     preview_w = max(60, int(largura * escala))
     preview_h = max(45, int(altura * escala))
     return bloco.resize((preview_w, preview_h), Image.Resampling.LANCZOS)
@@ -428,6 +474,8 @@ if "template_nome" not in st.session_state:
     st.session_state.template_nome = escolher_template_aleatorio("assets")
 if "export_image_bytes" not in st.session_state:
     st.session_state.export_image_bytes = None
+if "cor_texto_hex" not in st.session_state:
+    st.session_state.cor_texto_hex = "#FFFFFF"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -447,8 +495,22 @@ if file_carregado is not None:
     )
     st.markdown("### Caption Text")
     texto_orador = st.text_area("", value="", label_visibility="collapsed")
-    if st.button("Change Colours"):
+    with st.container(key="text_color_controls"):
+        st.caption("Choose colour of text")
+        col_light, col_dark, _ = st.columns([0.14, 0.14, 0.72], gap="small")
+        with col_light:
+            if st.button("Light", key="text_light_button"):
+                st.session_state.cor_texto_hex = "#FFFFFF"
+                st.rerun()
+        with col_dark:
+            if st.button("Dark", key="text_dark_button"):
+                st.session_state.cor_texto_hex = "#383838"
+                st.rerun()
+
+    st.markdown("### Post Preview")
+    if st.button("Change Coloured Bars"):
         st.session_state.template_nome = escolher_template_aleatorio("assets")
+        st.rerun()
 
     # Build the preview background without text; the text stays in a draggable layer.
     img_preview_base = gerar_post_designae(
@@ -457,6 +519,7 @@ if file_carregado is not None:
         0,
         0,
         st.session_state.template_nome,
+        st.session_state.cor_texto_hex,
         desenhar_texto=False
     ).resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
 
@@ -464,9 +527,14 @@ if file_carregado is not None:
     caixa_w, caixa_h = calcular_caixa_texto(texto_orador)
     caixa_x = int(st.session_state.pos_x * ESCALA)
     caixa_y = int(st.session_state.pos_y * ESCALA)
-    bloco_preview = preparar_bloco_arrastavel(texto_orador, caixa_w, caixa_h, ESCALA)
+    bloco_preview = preparar_bloco_arrastavel(
+        texto_orador,
+        caixa_w,
+        caixa_h,
+        ESCALA,
+        st.session_state.cor_texto_hex,
+    )
 
-    st.markdown("### Post Preview")
     st.caption(
         "Drag the text to reposition the text block."
     )
@@ -524,7 +592,8 @@ if file_carregado is not None:
         texto_orador,
         st.session_state.pos_x,
         st.session_state.pos_y,
-        st.session_state.template_nome
+        st.session_state.template_nome,
+        st.session_state.cor_texto_hex,
     )
 
     buf = io.BytesIO()
