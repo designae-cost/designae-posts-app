@@ -230,6 +230,7 @@ def gerar_post_designae(
     template_nome,
     cor_texto_hex="#FFFFFF",
     desenhar_texto=True,
+    escala_caption=1.0,
 ):
     LARGURA, ALTURA = EXPORT_W, EXPORT_H
     pasta_assets = "assets"
@@ -257,7 +258,7 @@ def gerar_post_designae(
 
     if desenhar_texto and texto_orador.strip():
         render_scale = EXPORT_SCALE
-        fonte = carregar_fonte(pasta_assets, tamanho=TAMANHO_FONTE_PX * render_scale)
+        fonte = carregar_fonte(pasta_assets, tamanho=max(1, int(round(TAMANHO_FONTE_PX * escala_caption * render_scale))))
         linhas = quebrar_texto_estrito(texto_orador, max_caracteres=18)
 
         origem_x = int(round(texto_x * render_scale))
@@ -266,12 +267,15 @@ def gerar_post_designae(
 
         mini = carregar_mini_bars(pasta_assets, render_scale)
         if mini is not None:
+            mini_w = max(1, int(round(mini.width * escala_caption)))
+            mini_h = max(1, int(round(mini.height * escala_caption)))
+            mini = mini.resize((mini_w, mini_h), Image.Resampling.LANCZOS)
             largura_m = mini.width
             camada_fixos.paste(mini, (origem_x, origem_y), mini)
-            recuo_texto_x = largura_m - (10 * render_scale)
+            recuo_texto_x = largura_m - int(round(10 * escala_caption * render_scale))
 
         draw = ImageDraw.Draw(camada_fixos)
-        y_linha_atual = origem_y + (40 * render_scale)
+        y_linha_atual = origem_y + int(round(40 * escala_caption * render_scale))
         cor_texto = tuple(int(cor_texto_hex.lstrip("#")[idx:idx + 2], 16) for idx in (0, 2, 4)) + (255,)
 
         for linha in linhas:
@@ -282,7 +286,7 @@ def gerar_post_designae(
                     fill=cor_texto,
                     font=fonte,
                 )
-            y_linha_atual += ENTRELINHA_PX * render_scale
+            y_linha_atual += int(round(ENTRELINHA_PX * escala_caption * render_scale))
 
     resultado = Image.alpha_composite(foto_base.convert("RGBA"), camada_fixos)
     return resultado.convert("RGB")
@@ -295,10 +299,10 @@ def imagem_para_data_url(img_pil):
     return f"data:image/png;base64,{encoded}"
 
 
-def calcular_caixa_texto(texto_orador):
+def calcular_caixa_texto(texto_orador, escala_caption=1.0):
     """Calcula a área arrastável do bloco de texto na escala real do post."""
     pasta_assets = "assets"
-    fonte = carregar_fonte(pasta_assets, tamanho=TAMANHO_FONTE_PX)
+    fonte = carregar_fonte(pasta_assets, tamanho=max(1, int(round(TAMANHO_FONTE_PX * escala_caption))))
     linhas = quebrar_texto_estrito(texto_orador, max_caracteres=18)
 
     largura_texto = 180
@@ -316,17 +320,19 @@ def calcular_caixa_texto(texto_orador):
     altura_mini = 0
     mini = carregar_mini_bars(pasta_assets, 1)
     if mini is not None:
+        mini = mini.resize((max(1, int(round(mini.width * escala_caption))), max(1, int(round(mini.height * escala_caption)))), Image.Resampling.LANCZOS)
         largura_mini, altura_mini = mini.size
 
-    recuo_texto_x = largura_mini + -10 if largura_mini else 0
-    largura = max(largura_mini, recuo_texto_x + largura_texto) + 30
-    altura_texto = 40 + max(len(linhas), 1) * ENTRELINHA_PX
-    altura = max(altura_mini, altura_texto) + 20
+    recuo_texto_x = largura_mini - int(round(10 * escala_caption)) if largura_mini else 0
+    margem = int(round(30 * escala_caption))
+    largura = max(largura_mini, recuo_texto_x + largura_texto) + margem
+    altura_texto = int(round(40 * escala_caption)) + max(len(linhas), 1) * int(round(ENTRELINHA_PX * escala_caption))
+    altura = max(altura_mini, altura_texto) + int(round(20 * escala_caption))
 
-    return max(largura, 180), max(altura, 90)
+    return max(largura, int(round(180 * escala_caption))), max(altura, int(round(90 * escala_caption)))
 
 
-def gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex="#FFFFFF"):
+def gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex="#FFFFFF", escala_caption=1.0):
     bloco = Image.new("RGBA", (largura, altura), (0, 0, 0, 0))
 
     if texto_orador.strip():
@@ -335,13 +341,14 @@ def gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex="#FFF
 
         mini = carregar_mini_bars(pasta_assets, 1)
         if mini is not None:
+            mini = mini.resize((max(1, int(round(mini.width * escala_caption))), max(1, int(round(mini.height * escala_caption)))), Image.Resampling.LANCZOS)
             bloco.paste(mini, (0, 0), mini)
-            recuo_texto_x = mini.width + -10
+            recuo_texto_x = mini.width - int(round(10 * escala_caption))
 
-        fonte = carregar_fonte(pasta_assets, tamanho=TAMANHO_FONTE_PX)
+        fonte = carregar_fonte(pasta_assets, tamanho=max(1, int(round(TAMANHO_FONTE_PX * escala_caption))))
         linhas = quebrar_texto_estrito(texto_orador, max_caracteres=18)
         draw = ImageDraw.Draw(bloco)
-        y_linha_atual = 40
+        y_linha_atual = int(round(40 * escala_caption))
         cor_texto = tuple(int(cor_texto_hex.lstrip("#")[idx:idx + 2], 16) for idx in (0, 2, 4)) + (255,)
 
         for linha in linhas:
@@ -352,13 +359,13 @@ def gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex="#FFF
                     fill=cor_texto,
                     font=fonte,
                 )
-            y_linha_atual += ENTRELINHA_PX
+            y_linha_atual += int(round(ENTRELINHA_PX * escala_caption))
 
     return bloco
 
 
-def preparar_bloco_arrastavel(texto_orador, largura, altura, escala, cor_texto_hex="#FFFFFF"):
-    bloco = gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex)
+def preparar_bloco_arrastavel(texto_orador, largura, altura, escala, cor_texto_hex="#FFFFFF", escala_caption=1.0):
+    bloco = gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex, escala_caption)
     preview_w = max(60, int(largura * escala))
     preview_h = max(45, int(altura * escala))
     return bloco.resize((preview_w, preview_h), Image.Resampling.LANCZOS)
@@ -495,6 +502,8 @@ if file_carregado is not None:
     )
     st.markdown("### Caption Text")
     texto_orador = st.text_area("", value="", label_visibility="collapsed")
+    escala_caption_pct = st.slider("Caption block size", min_value=50, max_value=200, value=100, step=5)
+    escala_caption = escala_caption_pct / 100
     with st.container(key="text_color_controls"):
         st.caption("Choose colour of text")
         col_light, col_dark, _ = st.columns([0.14, 0.14, 0.72], gap="small")
@@ -524,7 +533,7 @@ if file_carregado is not None:
     ).resize((CANVAS_W, CANVAS_H), Image.Resampling.LANCZOS)
 
     # Draggable text block in preview scale.
-    caixa_w, caixa_h = calcular_caixa_texto(texto_orador)
+    caixa_w, caixa_h = calcular_caixa_texto(texto_orador, escala_caption)
     caixa_x = int(st.session_state.pos_x * ESCALA)
     caixa_y = int(st.session_state.pos_y * ESCALA)
     bloco_preview = preparar_bloco_arrastavel(
@@ -533,6 +542,7 @@ if file_carregado is not None:
         caixa_h,
         ESCALA,
         st.session_state.cor_texto_hex,
+        escala_caption,
     )
 
     st.caption(
@@ -594,6 +604,7 @@ if file_carregado is not None:
         st.session_state.pos_y,
         st.session_state.template_nome,
         st.session_state.cor_texto_hex,
+        escala_caption=escala_caption,
     )
 
     buf = io.BytesIO()
