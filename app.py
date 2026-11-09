@@ -392,6 +392,10 @@ def preparar_bloco_arrastavel(texto_orador, largura, altura, escala, cor_texto_h
     bloco = gerar_bloco_texto_preview(texto_orador, largura, altura, cor_texto_hex, escala_caption)
     preview_w = max(60, int(largura * escala))
     preview_h = max(45, int(altura * escala))
+    # Keep one identical scale factor on both axes; independent minimums distort
+    # the caption when its logical dimensions are small.
+    preview_w = max(1, int(round(largura * escala)))
+    preview_h = max(1, int(round(altura * escala)))
     return bloco.resize((preview_w, preview_h), Image.Resampling.LANCZOS)
 
 
